@@ -2,6 +2,10 @@
 %General Antenna Array Specifications
 %Program assumes that all atnennas are the same legnth from reference
 %antenna
+clc
+clear all
+clf
+close all
 a = input ('The Number of Array Elements : ') ;
 d = input ('The Separation Distance Between Elements : ') ; %meters
 f = input ('The Operation Frequency : ') ; % in Hz

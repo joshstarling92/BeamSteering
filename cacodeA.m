@@ -1,8 +1,7 @@
-function g=cacode_bevly(sv,shift,fs)
+function g=cacodeA(Settings, sv,fs,time_ms)
 % function G=CACODE(SV,FS) 
 % Generates 1023 length C/A Codes for GPS PRNs 1-37
 %
-% BEVLY ADDED A SHIFT TO SHIFT THE CACODE BY ONE CHIP.
 % 
 % g: nx1023 matrix- with each PRN in each row with symbols 1 and 0
 % sv: a row or column vector of the SV's to be generated
@@ -43,7 +42,6 @@ function g=cacode_bevly(sv,shift,fs)
 
 if nargin<2
 	fs=1;
-    shift=0;
 end
 
 
@@ -111,35 +109,33 @@ L=2^n-1;
 % G2j LFSR: x^10+x^9+x^8+x^6+x^3+x^2+1
 t=[0 1 1 0 0 1 0 1 1 1];
 q=ones(1,n);	%initialization vector for G2
-g2(1,L)=0;
-g(1,L)=0;
+
 % generate C/A Code sequences:
 tap_sel=tap(sv,:);
-for inc=1:L
+for inc=1:L*time_ms  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     g2(:,inc)=mod(sum(q(tap_sel),2),2);
-    g(:,inc)=2*mod(g1(n)+g2(:,inc),2)-1;  % Bevly edit to make it +1/-1
+    g(:,inc)=mod(g1(n)+g2(:,inc),2);
    g1=[mod(sum(g1.*s),2) g1(1:n-1)];
    q=[mod(sum(q.*t),2) q(1:n-1)];
 end
 
-
-% shift by certain number of chips
-g=[g(shift+1:1023) g(1:shift)];
-
-
 %upsample to desired rate
 if fs~=1
+    
+    
+
 	%fractional upsampling with zero order hold
-    gfs(1,round(1023*fs))=0;  % initialize the vector so runs faster.
 	index=0;
-	for cnt = 1/fs:1/fs:L
+	for cnt = 1/Settings.acq_block:1023*time_ms/Settings.acq_block:L*time_ms %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+       
 		index=index+1;
-		if ceil(cnt) > L   %traps a floating point error in index
-			gfs(:,index)=g(:,L);
-		else
-			gfs(:,index)=g(:,ceil(cnt));
+		if ceil(cnt) > L*time_ms   %traps a floating point error in index
+			gfs(index)=g(L);
+            
+        else          
+			gfs(index)=g(ceil(cnt));
 		end
-	end 
+    end 
+    
 	g=gfs;
-   
 end

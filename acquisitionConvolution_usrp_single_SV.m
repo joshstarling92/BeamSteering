@@ -9,13 +9,13 @@ close all
 clear
 
 % SV to look for
-for SV_NUM = 22
-NUM_MS=1;       % Number of MS used in the ingration period
-SKIP_SECONDS= 14*60;    % skip initial # seconds (initial data sometimes not good).
+for SV_NUM = 1:32
+NUM_MS=5;       % Number of MS used in the ingration period
+SKIP_SECONDS= 3.5*60;    % skip initial # seconds (initial data sometimes not good).
 % open data file
 %filename = 'USRP_Data/4_5_M_complex_16_8int_cable_with_clock_unknownsync_PPS_2_cleartest.dat';
 %filename = 'USRP_Data/6_27_13_test.dat';
-filename ='Feb_6_5M_int16_CSAC_USRP10_GPS_TestTwo.dat';
+filename ='April_8_5M_Sim03042015_int16_Simulator_Ant3_NoInterference_sat99.dat';
 % data files are complex int16
 % 2 byte I followed by 2 byte Q for each sample (4 bytes per sample)
 

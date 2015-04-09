@@ -9,18 +9,18 @@
 %this reads data that has been recorded in complex int16 format
 
 
-function [signal,signal_comp]  = read_USRP_data(file,sample_frequency,integration_period,skip_seconds,bytes_per_sample)
+function [signal,signal_comp]  = read_USRP_data(file,Settings)
 fid = fopen(sprintf('%s',file),'rb');
 % Checks over double the integration period (in 1 ms shifts) in case of
 % Data Bit Transition
-samples_to_read = 2*round(sample_frequency*integration_period);  
+Settings.samples_to_read = 2*round(Settings.sample_frequency*Settings.integration_period);  
 
-samples_to_skip=skip_seconds*sample_frequency;   
+Settings.samples_to_skip=Settings.skip_seconds*Settings.sample_frequency;   
 % how many seconds to skip (Initial USRP data is not good)
 
-fseek(fid, samples_to_skip*bytes_per_sample, 'bof');
+fseek(fid, Settings.samples_to_skip*Settings.bytes_per_sample, 'bof');
 
-t = fread (fid, [2, samples_to_read], 'short');
+t = fread (fid, [2, Settings.samples_to_read], 'short');
 signal = t(1,:) + t(2,:)*1i;
 signal_comp(1,:) = t(1,:);
 signal_comp(2,:) = t(2,:)*1i;

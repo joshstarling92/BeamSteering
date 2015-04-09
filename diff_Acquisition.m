@@ -1,4 +1,4 @@
-function [out_I,out_Q] = Acquisition(incoming_signal,SV_input_array,sample_frequency,integration_period,intermediate_frequency,NUM_MS,NUM_DATA_SETS)
+function [diff] = diff_Acquisition(incoming_real,incoming_imag,incoming_signal,SV_input_array,sample_frequency,integration_period,intermediate_frequency,NUM_MS,NUM_DATA_SETS)
 
 for SV_array = SV_input_array
 	ts=1/sample_frequency;	% sampling time
@@ -25,27 +25,20 @@ for SV_array = SV_input_array
 	    START_Dataset=(n/NUM_MS)*(dataset-1)+1;
 	    END_Dataset=START_Dataset+n-1;
 	    read_signal=incoming_signal(START_Dataset:END_Dataset);
-        if dataset == 2
-            value = 41;
-        else
-            value = 0;
-        end
 	    for i=1:41
 	      fc(i) = fc0 + 0.0005e6*(i-21);
 	      expfreq=exp(j*2*pi*fc(i)*ts*nn);
 	      signal=read_signal.*expfreq;
 	      I = imag(signal);
 	      Q = real(signal);
-          temp_out_I(i+value,:) = I;
-          temp_out_Q(i+value,:) = Q;
 	      IQfreq = fft(I+j*Q);
 	      codefreq = conj(fft(code));  
 	      convcodeIQ = IQfreq .* codefreq;
 	      %result(i,:,dataset) = abs(ifft(convcodeIQ)).^2;
 	      result(i,:) = abs(ifft(convcodeIQ)).^2;   % modified due to memory limits
-%           realnum(dataset,:) = I;
-%           imaginary(dataset,:) = Q;
-	    end
+          realnum(dataset,:) = I;
+          imaginary(dataset,:) = Q;
+        end
 	    datasetresult=result;
 	    [peak(dataset) codephase(dataset)]=max(max(datasetresult));
 	    meanresult=mean(mean(datasetresult));
@@ -56,8 +49,12 @@ for SV_array = SV_input_array
 	        best_result=peak(dataset)/meanresult;
 	    end;
 	end
-out_I = temp_out_I;
-out_Q = temp_out_Q;
+
+        realnum = [realnum(1,:) realnum(2,:)];
+        imaginary = [imaginary(1,:) imaginary(2,:)];
+        diff(1,:) = realnum - incoming_real;
+        diff(2,:) = imaginary - incoming_imag;
+        
 	frequency = fc(frequency);
 	codephaseChips = round(1023 - (codephase/11999)*1023);
 	gold_rate = 1.023e6;			% Gold code clock rate in Hz
@@ -67,7 +64,7 @@ out_Q = temp_out_Q;
 	c=ceil((ts*b)/tc);
 	x_axis=c;code;
 	y_axis=fc/1e6;
-
+% 
 % 	figure
 % 	    datasetresult=saveresult;
 % 	    s=surf(x_axis,y_axis,datasetresult(:,1:n/NUM_MS));
