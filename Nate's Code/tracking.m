@@ -235,6 +235,8 @@ for channelNr = 1:settings.numberOfChannels
                 case 'nordnav'
                     qBasebandSignal = carrCos .* rawSignal;
                     iBasebandSignal = carrSin .* rawSignal;
+                    qBasebandSignalOut(:,:,loopCnt,channelNr) = qBasebandSignal(:,1:4999);
+                    iBasebandSignalOut(:,:,loopCnt,channelNr) = iBasebandSignal(:,1:4999);
                 case 'wis'
                     qBasebandSignal = carrCos .* IQmixed(1,:);
                     iBasebandSignal = carrSin .* IQmixed(1,:);

@@ -1,4 +1,4 @@
-function [Corr_results,Incoming, acqChannel] = Acquisition(Settings, init, filename,number_of_antennas)
+function [Corr_results,Incoming, acqChannel,W] = Acquisition(Settings, init, filename)
 
 
 %% Initialize Acquisition Structure =======================================
@@ -9,12 +9,12 @@ Incoming.a = 0;
 Corr_results.a = 0;
 Mod_corr_results.a = 0;
 acqChannel = repmat(acqChannel, 1, Settings.numberOfChannels);
-
+state = 0;
 %% Read in Data and create time vector
 
 switch init.run
     case 'nordnav'
-        for i = 1:number_of_antennas;
+        for i = 1:Settings.number_of_antennas;
             Incoming = readIF(Incoming,Settings, filename(i,:),i);
         end
     case 'wis'
@@ -24,9 +24,11 @@ SigSize = Incoming.SigSize(i,:);
 timeVec = 0:1/Settings.Sf:(SigSize(2) - 1)/Settings.Sf;
 % Add random noise to the signal if desired
 if init.addNoise == 1
-    sigma = 10;
-    noise = sigma * randn(1,length(fullsignal));
-    Incoming.signal = fullsignal + noise;
+    for i = 1:Settings.number_of_antennas;
+        sigma = 70;
+        noise = sigma * randn(1,length(Incoming.correlationSignal(i,:)));
+        Incoming.correlationSignal(i,:) = Incoming.correlationSignal(i,:) + noise;
+    end
 end
 
 %% Create and resample CA code
@@ -90,23 +92,23 @@ for sattelite = 1:length(init.sattId)
         h,['Correlating Sattelite PRN: ' num2str(init.sattId(sattelite))]); 
     end
 
-    for i = 1:number_of_antennas
+    for i = 1:Settings.number_of_antennas
         Corr_results = fftAcqCorrelation(Corr_results,Settings,... 
                         Incoming, init, dopp_range, timeVec,...
                        caMatrix(init.sattId(1,sattelite),:),i,sattelite);  
-        unmod_signal(:,:,i,sattelite) = Corr_results.I(:,:,i,sattelite)+1i*Corr_results.Q(:,:,i,sattelite);
+        Signal.unmod_signal(:,:,i,sattelite) = Corr_results.I(:,:,i,sattelite)+1i*Corr_results.Q(:,:,i,sattelite);
+        Signal.autocorr_signal(i,:) = reshape(Signal.unmod_signal(:,:,i,sattelite),1,101*15000);
     end
-    %Beam Stearing using power minimization
-    delta = [1;0;0];
-    %Rxx = (Incoming.signal*ctranspose(Incoming.signal));
-    %W = 1/(delta'*inv(Rxx)*delta)*inv(Rxx)*delta;
-    W = [1; -0.4360 + 0.4268i];
-    modified_CW_signal = W(1)*unmod_signal(:,:,1);%+ W(2)*unmod_signal(:,:,2) ;%+ W(3)*unmod_signal(:,: ,3);
-    Mod_corr_results = modfftAcqCorrelation(Mod_corr_results,Settings,... 
+    W= 0;
+    if init.BeamForming == 1
+      [modified_CW_signal,W] = WeightCalculation(Settings,Signal,init.run_type,sattelite);
+      Mod_corr_results = modfftAcqCorrelation(Mod_corr_results,Settings,... 
                         Incoming, init, dopp_range, timeVec,...
                        caMatrix(init.sattId(1,sattelite),:),modified_CW_signal,sattelite);
-    S1(:,:,init.sattId(1,sattelite)) = Mod_corr_results.corr(1:101,1:5000)';
-    %S1(:,:,init.sattId(1,sattelite)) = Corr_results.corr(1:101,1:5000)';
+      S1(:,:,init.sattId(1,sattelite)) = Mod_corr_results.corr(1:101,1:5000)';
+    else
+      S1(:,:,init.sattId(1,sattelite)) = Corr_results.corr(1:101,1:5000)';
+    end
 
    
     if init.plotAcqPlanes == 1

@@ -3,20 +3,20 @@ switch Settings.run_type
     case  0
         fprintf('Preforming Null Steering\n')
         %%Null Steering - can block K-1 number of direction
-        elevation = [54*pi/180 43*pi/180 43*pi/180]; %Elevation of signal(s) that are to be blocked (rads)
-        azimuth = [316*pi/180 186*pi/180 196*pi/180]; %Azimuth of signal(s) that are to be blocked (rads)
+        elevation = [0*pi/180 0*pi/180 0*pi/180]; %Elevation of signal(s) that are to be blocked (rads)
+        azimuth = [89*pi/180 90*pi/180 91*pi/180]; %Azimuth of signal(s) that are to be blocked (rads)
         
         p(1,:) = [0 0 0];
-        p(2,:)= [.5*lamda 0 0]; %vector from second antenna to reference antenna (m)
-        %p(3,:)= [0 -.5*lamda 0]; %vector from third antenna to reference antenna (m)
+        p(2,:)= [0 3/4*Settings.lamda 0 ]; %vector from second antenna to reference antenna (m)
+        p(3,:)= [0 2*3/4*Settings.lamda 0 ]; %vector from third antenna to reference antenna (m)
         
         r(1,:) = [sin(azimuth(1))*cos(elevation(1)) cos(azimuth(1))*cos(elevation(1)) sin(azimuth(1))]; %bore sight vector to interference
-       % r(2,:) = [sin(azimuth(2))*cos(elevation(2)) cos(azimuth(2))*cos(elevation(2)) sin(azimuth(2))]; %bore sight vector to interference
-        b = [1;-1/(Settings.NumberOfAntennas-1)];
-        a = [exp(j*(2*pi*dot(p(1,:),r(1,:))/lamda)); exp(j*(2*pi*dot(p(2,:),r(1,:))/lamda))];
+        r(2,:) = [sin(azimuth(2))*cos(elevation(2)) cos(azimuth(2))*cos(elevation(2)) sin(azimuth(2))]; %bore sight vector to interference
+        b = [1;-1/(Settings.NumberOfAntennas-1);-1/(Settings.NumberOfAntennas-1)];
+        a = [exp(j*(2*pi*dot(p(1,:),r(1,:))/Settings.lamda)); exp(j*(2*pi*dot(p(2,:),r(1,:))/Settings.lamda)); exp(j*(2*pi*dot(p(3,:),r(2,:))/Settings.lamda))];
         W = a.*b; %weight to be applied to signal
         
-        Signals.modified_CW_signal = W(1)*Signals.CW_signal(:,:,1) + W(2)*Signals.CW_signal(:,:,2); %+ W(3)*Signals.CW_signal(:,:,3);
+        Signals.modified_CW_signal = W(1)*Signals.CW_signal(:,:,1) + W(2)*Signals.CW_signal(:,:,2)+ W(3)*Signals.CW_signal(:,:,3);
     case 1
         %%Beam Steering
         fprintf('Preforming Beam Steering\n')
@@ -37,7 +37,7 @@ switch Settings.run_type
         %%User Chosen Weights
         fprintf('User \n')
         W = [   0.5000 - 0.3497i; -0.4360 + 0.4268i];
-        Signals.modified_CW_signal = W(1)*Signals.CW_signal(:,:,1) + W(2)*Signals.CW_signal(:,:,2);
+        Signals.modified_CW_signal = W(1)*Signals.CW_signal(:,:,1) + W(2)*Signals.CW_signal(:,:,2) + W(3)*Signals.CW_signal(:,:,3);
         
     case 3
         %Adaptive PM Beam Steering
@@ -75,5 +75,41 @@ switch Settings.run_type
         psi = (2*pi/lamda)*(3/4*lamda)*cosd(275)+(2*pi/lamda)*(3/4*lamda)*cosd(90);
         B = -2*cos(psi);
         Signals.modified_CW_signal = W(1)*Signals.CW_signal(:,:,1) + W(2)*Signals.CW_signal(:,:,2) + W(3)*Signals.CW_signal(:,:,3);   
+        
+    case 6
+        %Applebaum Adaptive Array
+        fprintf('Performing Applebaum Adaptive N.S.\n')
+        Pq = 99;
+        Pj = 125;
+        a = 2;
+        Bs = 2*pi*(Settings.lamda*3/4)/Settings.lamda*sind(332);
+        Bj = 2*pi*(Settings.lamda*3/4)/Settings.lamda*sind(90);
+        Bj_mat = [   1;
+                  exp(1i*Bj);
+                 exp(1i*2*Bj)];
+        Wq = [     a;
+             a*exp(-1i*Bs);
+            a*exp(-1i*2*Bs)];
+        Gq_Bj = Bj_mat.*Wq;
+        W = Wq-Pj/(Pq+Settings.NumberOfAntennas*Pj)*Gq_Bj.*Bj_mat;
+        Signals.modified_CW_signal = W(1)*Signals.CW_signal(:,:,1) + W(2)*Signals.CW_signal(:,:,2) + W(3)*Signals.CW_signal(:,:,3);
+        
+    case 7
+        %LMS
+        DesiredSig = load('DesiredSig.mat');
+        W = [.5;.5;.5];
+        mu = .1;
+        Signals.ErrorInSignal = DesiredSig.CW_signal  - (Signals.CW_signal(:,:,1)+Signals.CW_signal(:,:,2)+Signals.CW_signal(:,:,3)); %82x10,000
+        Xflat = Signals.CW_signal(:)';
+        X(:,1) = Xflat(1, 1:820000);
+        X(:,2) = Xflat(1, 820001:1640000);
+        X(:,3) = Xflat(1, 1640001:2460000);
+        W(:,2) = W(:,1)+2*mu*(Signals.ErrorInSignal(:)'*X)';
+        Signals.modified_CW_signal = W(1,2)*Signals.CW_signal(:,:,1) + W(2,2)*Signals.CW_signal(:,:,2) + W(3,2)*Signals.CW_signal(:,:,3);  
+        for i  = 1:100
+            Signals.ErrorInSignal = -DesiredSig.CW_signal + Signals.modified_CW_signal;
+            W(:,i+2) = W(:,i+1)+2*mu*(Signals.ErrorInSignal(:)'*X)';
+            Signals.modified_CW_signal = W(1,i+2)*Signals.CW_signal(:,:,1) + W(2,i+2)*Signals.CW_signal(:,:,2) + W(3,i+2)*Signals.CW_signal(:,:,3);
+        end 
 end
-end
+en

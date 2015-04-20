@@ -35,8 +35,10 @@ for SV_array = Settings.SV_array
         end
 	    for i=1:41
 	      fc(i) = fc0 + 0.0005e6*(i-21);
-	      I = real(Signals.modified_CW_signal(i+value,:));
-	      Q = imag(Signals.modified_CW_signal(i+value,:));
+	      
+          I = real(Signals.modified_CW_signal(i+value,:));
+          Q = imag(Signals.modified_CW_signal(i+value,:));
+          
 	      IQfreq = fft(I+1i*Q);
 	      codefreq = conj(fft(code));  
 	      convcodeIQ = IQfreq .* codefreq;
@@ -68,7 +70,7 @@ for SV_array = Settings.SV_array
 	y_axis=fc/1e6;
     
 if Settings.mod_acq_graph == 1
-	figure((length(Settings.SV_array)*Settings.NumberOfAntennas)+find(Settings.SV_array == SV_array))
+	figure(length(Settings.SV_array)*Settings.unmod_acq_graph+find(Settings.SV_array == SV_array))
 	    datasetresult=saveresult;
 	    s=surf(x_axis,y_axis,datasetresult(:,1:n/Settings.NUM_MS));
 	    set(s,'EdgeColor','none','Facecolor','interp');

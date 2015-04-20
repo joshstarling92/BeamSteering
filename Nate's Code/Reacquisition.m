@@ -3,7 +3,7 @@ function ReacqChannel = Reacquisition(Settings, init, filename, trackingResults)
 ReacqChannel.PRN = 0;
 ReacqChannel.acquiredFreq = 0;
 ReacqChannel.codePhase = 0;
-
+Incoming.a = 0;
 ReacqChannel = repmat(ReacqChannel, 1, Settings.numberOfChannels);
 
 A = 800;
@@ -12,7 +12,7 @@ A = 800;
 %% Read in Data and create time vector
 switch init.run
     case 'nordnav'
-        Incoming = readIF(Settings, filename);
+        Incoming = readIF(Incoming,Settings,filename,1);
     case 'wis'
         Incoming = readIF_Wis(Settings, filename);
 end

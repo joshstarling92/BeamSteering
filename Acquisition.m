@@ -70,8 +70,8 @@ for SV_array = Settings.SV_array
 	x_axis=c;%code;
 	y_axis=fc/1e6;
 
-    if Settings.unmod_acq_graph == 1
-        figure((CurrentAntenna*length(Settings.SV_array)-length(Settings.SV_array))+find(Settings.SV_array == SV_array))
+    if Settings.unmod_acq_graph == 1 && Settings.unmod_done== 0;
+        figure(find(Settings.SV_array == SV_array))
 	    datasetresult=saveresult;
 	    s=surf(x_axis,y_axis,datasetresult(:,1:n/Settings.NUM_MS));
 	    set(s,'EdgeColor','none','Facecolor','interp');
@@ -83,6 +83,7 @@ for SV_array = Settings.SV_array
 	    text=sprintf('SV Number: %i',SV_array);
         title(text);
     end
+    
 end
 return
 

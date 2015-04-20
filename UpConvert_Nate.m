@@ -29,10 +29,10 @@ modsine   = modsine(:)';
 modcosine = modcosine(:)';
 
 fileInput = ...
- 'April_8_5M_Sim03042015_int16_Simulator_Ant3_NoInterference_sat99.dat';
+ 'April_13_5M_Sim03042015_int16_Simulator_Ant3_Interference_sat125_int99_GSPDOLink.dat';
 
 fileOutput = ...
- 'NotGoingToWork.dat';
+ 'April_13_Sim_sat125_int99_Skip354_Ant3.dat';
 % if exist(fileOutput,'file') ~= 0
 %     fprintf('\n##### WARNING: This file exists. Would you like to overwrite it? ##### \n')
 %     disp(fileOutput);
@@ -45,9 +45,11 @@ fin = fopen(fileInput,'rb');
 % Open file handle
 fout = fopen(fileOutput,'wb');
 
-
+Sf =  5e6;
+SkipPos = Sf*354;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Read in first block, drop samples, and gets rid of transients
+fseek(fin, SkipPos, 'bof');
 [rawSignalx2, samplesReadx2] = fread(fin, 2*blksize, 'int16');
 if (samplesReadx2 ~= 2*blksize)
  disp('Cannot read first block of data - exiting program!')
