@@ -20,8 +20,10 @@ switch init.run
     case 'wis'
         Incoming = readIF_Wis(Settings, filename);
 end
+
 SigSize = Incoming.SigSize(i,:);
 timeVec = 0:1/Settings.Sf:(SigSize(2) - 1)/Settings.Sf;
+
 % Add random noise to the signal if desired
 if init.addNoise == 1
     for i = 1:Settings.number_of_antennas;
@@ -92,7 +94,15 @@ for sattelite = 1:length(init.sattId)
         h,['Correlating Sattelite PRN: ' num2str(init.sattId(sattelite))]); 
     end
 
-    for i = 1:Settings.number_of_antennas
+    %Change number to antennas to one if running LMS
+    %LMS alters correlationSignal
+    if init.run_type == 3 
+      LMS_antenna_number_adjustment = 1;
+    else
+      LMS_antenna_number_adjustment = Settings.number_of_antennas;
+    end
+
+    for i = 1:LMS_antenna_number_adjustment
         Corr_results = fftAcqCorrelation(Corr_results,Settings,... 
                         Incoming, init, dopp_range, timeVec,...
                        caMatrix(init.sattId(1,sattelite),:),i,sattelite);  
@@ -101,7 +111,7 @@ for sattelite = 1:length(init.sattId)
     end
     W= 0;
     if init.BeamForming == 1
-      [modified_CW_signal,W] = WeightCalculation(Settings,Signal,init.run_type,sattelite);
+      [modified_CW_signal,W] = WeightCalculation(Settings,Signal,init.run_type,sattelite,Incoming);
       Mod_corr_results = modfftAcqCorrelation(Mod_corr_results,Settings,... 
                         Incoming, init, dopp_range, timeVec,...
                        caMatrix(init.sattId(1,sattelite),:),modified_CW_signal,sattelite);

@@ -6,6 +6,45 @@ codephase = zeros(1,3);
 result = zeros(41,10000);
 fc = zeros(1,41);
 
+if Settings.run_type == 3
+	%Perfrom LMS on clean signal
+	load('April_9_Sim_Skip_354_2MS_DesiredSig.mat') %Signal
+	d = DesiredSignal;
+	%Optimal weight chooseing
+	X = [Signals.CleanSignal(1,:); Signals.CleanSignal(2,:);Signals.CleanSignal(3,:)];%Signals.CleanSignal(4,:)];
+	R = [mean(X(1,:).*X(1,:)) mean(X(1,:).*X(2,:)) mean(X(1,:).*X(3,:));% mean(X(1,:).*X(4,:));
+	     mean(X(2,:).*X(1,:)) mean(X(2,:).*X(2,:)) mean(X(2,:).*X(3,:));% mean(X(2,:).*X(4,:));
+	     mean(X(3,:).*X(1,:)) mean(X(3,:).*X(2,:)) mean(X(3,:).*X(3,:))];% mean(X(3,:).*X(4,:))];
+	     %mean(X(4,:).*X(1,:)) mean(X(4,:).*X(2,:)) mean(X(4,:).*X(3,:)) mean(X(4,:).*X(4,:))];
+	P = [mean(X(1,:).*d); mean(X(2,:).*d);mean(X(3,:).*d)]*-1;
+	Wopt = inv(R)*P;
+    R
+	%Weight Searching via gradient estimation
+	WLMS = Wopt;
+	mu = 1*10^-10;
+	count = 1;
+	while count < 10000
+	    y(count) = Signals.CleanSignal(1,count)*WLMS(1,count)+Signals.CleanSignal(2,count)*WLMS(2,count)...
+	        +Signals.CleanSignal(3,count)*WLMS(3,count);%+Signals.CleanSignal(4,count)*W(4,count);
+
+	    error(count) = DesiredSignal(count)-y(count);
+
+	    WLMS(:,count+1) = WLMS(:,count)-2*mu*error(count)...
+	        *[Signals.CleanSignal(1,count);Signals.CleanSignal(2,count);...
+	        Signals.CleanSignal(3,count)];%Signals.CleanSignal(4,count)];
+
+	    if isfinite(WLMS(1,count)) == 0
+	        fprintf('Weights are not a number\n')
+	        WLMS(:,count+1) = WLMS(:,count-5);
+	        break
+	    end
+	    count = count + 1;
+    end
+    Signals.WLMS = WLMS;
+	Signals.CleanSignal = WLMS(1,end)*Signals.CleanSignal(1,:) + WLMS(2,end)*Signals.CleanSignal(2,:)...
+	            + WLMS(3,end)*Signals.CleanSignal(3,:);
+end
+
 for SV_array = Settings.SV_array
 	ts=1/Settings.sample_frequency;	% sampling time
 	n=Settings.sample_frequency*Settings.integration_period;	

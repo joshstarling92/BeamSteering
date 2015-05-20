@@ -1,7 +1,65 @@
-function [modified_CW_signal,W] = WeightCalculation(Settings,Signals,run_type,sattelite)
-    W = 0;
+function [modified_CW_signal,W] = WeightCalculation(Settings,Signals,run_type,sattelite,incoming)
 switch run_type
-    case  0
+
+    case 0 %No Weights
+        W = 1;
+        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite);
+
+    case 1
+        %%User Chosen Weights
+        W = [   1.0000 + 0.0000i; -0.3322 + 0.0274i; -0.3333 + 0.0000i; -0.3232 - 0.0814i];
+        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)...
+            + W(3)*Signals.unmod_signal(:,:,3,sattelite)+ W(4)*Signals.unmod_signal(:,:,4,sattelite);
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%Adaptive Processes%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    case 2
+        %Adaptive PM Beam Steering
+        %Power Min. without having a look direction 
+        delta = [1;0;0;0];
+        Rxx = Signals.autocorr_signal*ctranspose(Signals.autocorr_signal);
+        W = 1/(delta'*inv(Rxx)*delta)*inv(Rxx)*delta;
+        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite)...
+        + W(4)*Signals.unmod_signal(:,:,4,sattelite);
+
+    case 3 
+        %LMS already applied in Acquisition
+        W = 1;
+        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite);
+
+    case 4
+        %Applebaum Adaptive Array
+        %Requires AOA of interference, would like to get working
+        fprintf('Performing Applebaum Adaptive N.S.\n')
+        mu = .1;
+        X = [incoming.correlationSignal(1,:); incoming.correlationSignal(2,:);incoming.correlationSignal(3,:)];%Signals.CleanSignal(4,:)];
+        R = [mean(X(1,:).*X(1,:)) mean(X(1,:).*X(2,:)) mean(X(1,:).*X(3,:));% mean(X(1,:).*X(4,:));
+         mean(X(2,:).*X(1,:)) mean(X(2,:).*X(2,:)) mean(X(2,:).*X(3,:));% mean(X(2,:).*X(4,:));
+         mean(X(3,:).*X(1,:)) mean(X(3,:).*X(2,:)) mean(X(3,:).*X(3,:))];% mean(X(3,:).*X(4,:))];
+         %mean(X(4,:).*X(1,:)) mean(X(4,:).*X(2,:)) mean(X(4,:).*X(3,:)) mean(X(4,:).*X(4,:))];
+
+        elevation = [32*pi/180 24*pi/180 0*pi/180]; %Elevation of satellites (rads)
+        azimuth = [330*pi/180 77*pi/180 30*pi/180]; %Azimuth of satellites(rads)
+        
+        p(1,:)= [0 0 0];
+        p(2,:)= [0 3/4*Settings.lamda 0]; %vector from second antenna to reference antenna (m)
+        p(3,:)= [0 2*3/4*Settings.lamda 0]; %vector from third antenna to reference antenna (m)
+        
+        r(1,:) = [sin(azimuth(1))*cos(elevation(1)) cos(azimuth(1))*cos(elevation(1)) sin(elevation(1))]; %bore sight vector to interference
+        r(2,:) = [sin(azimuth(2))*cos(elevation(2)) cos(azimuth(2))*cos(elevation(2)) sin(elevation(2))]; %bore sight vector to interference
+        b = [1;-1/(Settings.number_of_antennas-1);-1/(Settings.number_of_antennas-1)];
+        a = [exp(j*(2*pi*dot(p(1,:),r(1,:))/Settings.lamda)); exp(j*(2*pi*dot(p(2,:),r(1,:))/Settings.lamda)); exp(j*(2*pi*dot(p(3,:),r(2,:))/Settings.lamda))];
+        T = a.*b; %weight to be applied to signal
+        W = mu*R^-1*T;
+        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%Non-Adaptive Processes%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    case  5
         %fprintf('Preforming Null Steering\n')
         %%Null Steering - can block K-1 number of direction
         elevation = [0*pi/180 0*pi/180]; %Elevation of signal(s) that are to be blocked (rads)
@@ -18,7 +76,8 @@ switch run_type
         W = a.*b; %weight to be applied to signal
         
         modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
-    case 1
+
+    case 6
         %%Beam Steering
         fprintf('Preforming Beam Steering\n')
         elevation = [12*pi/180 12*pi/180 ]; %Elevation of signal(s) that are to be strenghtened (rads)
@@ -34,21 +93,12 @@ switch run_type
         
         modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
 
-    case 2
-        %%User Chosen Weights
-        fprintf('User \n')
-        W = [   0.5000 - 0.3497i; -0.4360 + 0.4268i];
-        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
         
-    case 3
-        %Adaptive PM Beam Steering
-        %Power Min. without having a look direction 
-        delta = [1;0;0];
-        Rxx = Signals.autocorr_signal*ctranspose(Signals.autocorr_signal);
-        W = 1/(delta'*inv(Rxx)*delta)*inv(Rxx)*delta;
-        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%Not Working Processes%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
-    case 4
+    case 7
         %Power Min. with a look direction 
         elevation = [46*pi/180 42*pi/180 41*pi/180 42*pi/180 32*pi/180 31*pi/180 22*pi/180 31*pi/180]; %Elevation of satellite(s) (rads)
         azimuth = [189*pi/180 351*pi/180 275*pi/180 101*pi/180 330*pi/180 168*pi/180 76*pi/180 182*pi/180]; %Azimuth of satellite(s) (rads)
@@ -70,29 +120,14 @@ switch run_type
         
         modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
 
-    case 5
+    case 8
         %Real-weight control NS
+        %Not fully working and not even a good process
+        %Can only null k/2 interferences
         W = -cos(-(2*pi/Settings.lamda)*(3/4*Settings.lamda)*cosd(275)+(2*pi/Settings.lamda)*(3/4*Settings.lamda)*cosd(0));
         psi = (2*pi/Settings.lamda)*(3/4*Settings.lamda)*cosd(275)+(2*pi/Settings.lamda)*(3/4*Settings.lamda)*cosd(90);
         B = -2*cos(psi);
         modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
         
-    case 6
-        %Applebaum Adaptive Array
-        fprintf('Performing Applebaum Adaptive N.S.\n')
-        Pq = 99;
-        Pj = 125;
-        a = 2;
-        Bs = 2*pi*(Settings.lamda*3/4)/Settings.lamda*sind(332);
-        Bj = 2*pi*(Settings.lamda*3/4)/Settings.lamda*sind(90);
-        Bj_mat = [   1;
-                  exp(1i*Bj);
-                 exp(1i*2*Bj)];
-        Wq = [     a;
-             a*exp(-1i*Bs);
-            a*exp(-1i*2*Bs)];
-        Gq_Bj = Bj_mat.*Wq;
-        W = Wq-Pj/(Pq+Settings.number_of_antennas*Pj)*Gq_Bj.*Bj_mat;
-        modified_CW_signal = W(1)*Signals.unmod_signal(:,:,1,sattelite) + W(2)*Signals.unmod_signal(:,:,2,sattelite)+ W(3)*Signals.unmod_signal(:,:,3,sattelite);
-end
+    
 end
